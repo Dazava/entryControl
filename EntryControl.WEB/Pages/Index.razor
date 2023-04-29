@@ -1,9 +1,59 @@
 ﻿@page "/"
+@inject IRepository repository
+@inject SweetAlertService sweetAlertService
+@inject NavigationManager navigationManager
 
-<PageTitle>Index</PageTitle>
 
-<h1>Hello, world!</h1>
+<div class="row">
+    <div class="col-md-4  offset-md-4">
 
-Welcome to your new app.
+        <EditForm Model="ticketDTO" OnValidSubmit="ValidateAsync">
+            <DataAnnotationsValidator />
 
-<SurveyPrompt Title="How is Blazor working for you?" />
+            <div class="card bg-light">
+                <div class="card-header justify-content-center">
+                    <span>
+                        <i class="oi oi-account-login" /> Validar Boleta
+                        <button class="btn btn-sm btn-primary float-end" type="submit"><i class="oi oi-check" /> Validar</button>
+                    </span>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label>Numero de boleta</label>
+                        <div>
+                            <InputNumber class="form-control" Min="1" InputMode="numeric" @bind-Value="@ticketDTO.Id" />
+                            <ValidationMessage For="@(() => ticketDTO.Id)" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+
+@code {
+    private TicketDTO ticketDTO = new();
+    private Ticket? ticket;
+
+    private async Task ValidateAsync()
+    {
+        var responseHttp = await repository.Get<Ticket>($"/api/tickets/{ticketDTO.Id}");
+        if (responseHttp.Error)
+        {
+            var message = await responseHttp.GetErrorMessageAsync();
+            await sweetAlertService.FireAsync("Error", message, SweetAlertIcon.Error);
+            return;
+        }
+        ticket = responseHttp.Response;
+
+        if (ticket!.IsUsed)
+        {
+            var message = $"La boleta fue usada el {ticket.UsedDate} por la portería {ticket.Gate}";
+            await sweetAlertService.FireAsync("Warn", message, SweetAlertIcon.Error);
+            return;
+        }
+
+        navigationManager.NavigateTo($"/tickets/register/{ticket.Id}");
+    }
+}
